@@ -15,7 +15,7 @@ import {get, getModelSchemaRef, post, requestBody, response} from '@loopback/res
 import {SecurityBindings, securityId, UserProfile} from '@loopback/security';
 import {createModelScheme} from '../models';
 import {User as ApplicationUser} from '../models/user.model';
-import {UserTokenRepository} from '../repositories';
+import {ApiKeysRepository, UserTokenRepository} from '../repositories';
 import {HasherService, UserService} from '../services';
 export class AuthenticationController {
   constructor(
@@ -31,7 +31,9 @@ export class AuthenticationController {
     @repository(UserTokenRepository)
     public tokenRepository: UserTokenRepository,
     @inject(TokenServiceBindings.TOKEN_EXPIRES_IN)
-    public expiration: string
+    public expiration: string,
+    @repository(ApiKeysRepository)
+    public apiKey: ApiKeysRepository
   ) { }
   @post('/users')
   @response(200, {
@@ -78,15 +80,15 @@ export class AuthenticationController {
     const expiresIn = new Date(Date.now() + (parseInt(this.expiration) * 1000))
     await this.tokenRepository.create({
       userId: user.id,
-      token: token,
+      token: this.hashService.sha256(token),
       expiresIn
     })
     return {token}
   }
   @get('/me')
-  @authenticate("jwt")
+  @authenticate("api-key")
   public async me() {
-    return this.userRepository.findById(this.user[securityId])
+    return this.apiKey.findById(+this.user[securityId])
   }
 }
 

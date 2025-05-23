@@ -1,6 +1,6 @@
-import {AuthenticationComponent} from '@loopback/authentication';
+import {AuthenticationComponent, registerAuthenticationStrategy} from '@loopback/authentication';
 import {JWTAuthenticationComponent, TokenServiceBindings, UserServiceBindings} from '@loopback/authentication-jwt';
-import {AuthorizationComponent, AuthorizationDecision, AuthorizationOptions} from '@loopback/authorization';
+import {AuthorizationComponent, AuthorizationDecision, AuthorizationOptions, AuthorizationTags} from '@loopback/authorization';
 import {BootMixin} from '@loopback/boot';
 import {ApplicationConfig} from '@loopback/core';
 import {RepositoryMixin} from '@loopback/repository';
@@ -13,7 +13,8 @@ import {ServiceMixin} from '@loopback/service-proxy';
 import dot from 'dotenv';
 import path from 'path';
 import {MySequence} from './sequence';
-import {UserService} from './services';
+import {AuthorizationProvider, UserService} from './services';
+import {ApiKeyStrategy} from './strategies/ApiKeyStrategy';
 dot.config()
 export {ApplicationConfig};
 
@@ -37,6 +38,7 @@ export class TemplateApplication extends BootMixin(
     this.component(RestExplorerComponent);
 
     this.component(AuthenticationComponent);
+    registerAuthenticationStrategy(this, ApiKeyStrategy);
     // Mount jwt component
     this.component(JWTAuthenticationComponent);
     this.bind(TokenServiceBindings.TOKEN_SECRET).to(process.env.TOKEN_SECRET as string)
@@ -49,6 +51,10 @@ export class TemplateApplication extends BootMixin(
 
     const binding = this.component(AuthorizationComponent);
     this.configure(binding.key).to(optionsAuthorize);
+    this
+      .bind('authorizationProviders.my-authorizer-provider')
+      .toProvider(AuthorizationProvider)
+      .tag(AuthorizationTags.AUTHORIZER);
 
     this.projectRoot = __dirname;
     // Customize @loopback/boot Booter Conventions here

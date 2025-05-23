@@ -27,7 +27,7 @@ export class UserService implements LoopbackUserService<User, Credentials> {
       [securityId]: user.id!.toString(),
       email: user.email,
       name: user.name,
-      role: null
+      profileType: 'User'
     }
   }
   async createAUser(user: Omit<User, 'id'>) {
