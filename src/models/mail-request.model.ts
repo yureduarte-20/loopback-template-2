@@ -53,7 +53,17 @@ export class MailRequest extends Entity {
     }
   })
   apiKeysId: number;
+  @property({
+    mysql: {
+      dataType: 'json',
+    }
+  })
+  info?: object;
 
+  @property({
+    default: 'pending'
+  })
+  status: string
   constructor(data?: Partial<MailRequest>) {
     super(data);
   }

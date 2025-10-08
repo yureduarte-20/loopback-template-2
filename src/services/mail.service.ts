@@ -32,6 +32,7 @@ export class NodemailerService implements IEmailService {
 
   // O método `sendMail` já corresponde à assinatura da interface.
   async sendMail(options: EmailOptions): Promise<void> {
+
     try {
       const mailOptions = {
         to: options.to,
@@ -45,6 +46,7 @@ export class NodemailerService implements IEmailService {
       console.log('Enviando e-mail (via Nodemailer) para:', options.to);
       const info = await this.transporter.sendMail(mailOptions);
       console.log('Mensagem enviada: %s', info.messageId);
+      return info;
     } catch (error) {
       console.error('Erro ao enviar e-mail:', error);
       throw new HttpErrors.InternalServerError(

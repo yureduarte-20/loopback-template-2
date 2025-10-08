@@ -1,4 +1,4 @@
-import {authenticate} from '@loopback/authentication';
+import {authenticate, AuthenticationBindings} from '@loopback/authentication';
 import {
   Count,
   CountSchema,
@@ -6,33 +6,37 @@ import {
   repository,
   Where,
 } from '@loopback/repository';
+import {securityId, UserProfile} from '@loopback/security';
+
 import {
   del,
   get,
   getModelSchemaRef,
   getWhereSchemaFor,
+  HttpErrors, // Adicionado HttpErrors
   param,
-  patch,
   post,
-  requestBody,
+  requestBody
 } from '@loopback/rest';
 
 import {inject} from '@loopback/core';
 import {NodemailerBindings} from '../config/mail.config';
 import {
-  ApiKeys,
-  MailRequest,
+  MailRequest
 } from '../models';
-import {ApiKeysRepository} from '../repositories';
+import {ApiKeysRepository, MailRequestRepository} from '../repositories';
 import {NodemailerService} from '../services/mail.service';
+
 @authenticate("api-key")
 export class ApiKeysMailRequestController {
   constructor(
     @repository(ApiKeysRepository) protected apiKeysRepository: ApiKeysRepository,
-    @inject(NodemailerBindings.EMAIL_SERVICE) private mailService: NodemailerService
+    @inject(NodemailerBindings.EMAIL_SERVICE) private mailService: NodemailerService,
+    @inject(AuthenticationBindings.CURRENT_USER) private user: UserProfile,
+    @repository(MailRequestRepository) private mailRequestRepository: MailRequestRepository
   ) { }
 
-  @get('/api-keys/{id}/mail-requests', {
+  @get('/mail-requests', {
     responses: {
       '200': {
         description: 'Array of ApiKeys has many MailRequest',
@@ -45,13 +49,12 @@ export class ApiKeysMailRequestController {
     },
   })
   async find(
-    @param.path.number('id') id: number,
     @param.query.object('filter') filter?: Filter<MailRequest>,
   ): Promise<MailRequest[]> {
-    return this.apiKeysRepository.mailRequests(id).find(filter);
+    return this.apiKeysRepository.mailRequests(+this.user[securityId]).find(filter);
   }
 
-  @post('/api-keys/{id}/mail-requests', {
+  @post('/mail-request', {
     responses: {
       '200': {
         description: 'ApiKeys model instance',
@@ -60,51 +63,73 @@ export class ApiKeysMailRequestController {
     },
   })
   async create(
-    @param.path.number('id') id: typeof ApiKeys.prototype.id,
     @requestBody({
       content: {
         'application/json': {
           schema: getModelSchemaRef(MailRequest, {
             title: 'NewMailRequestInApiKeys',
-            exclude: ['id'],
+            exclude: ['id', 'apiKeysId', 'info', 'status'],
             optional: ['apiKeysId']
           }),
         },
       },
-    }) mailRequest: Omit<MailRequest, 'id'>,
+    }) mailRequest: Omit<MailRequest, 'id' | 'apiKeysId' | 'info' | 'status'>,
   ): Promise<MailRequest> {
+    console.log(+this.user[securityId])
+    const mailRequestCreate = await this.mailRequestRepository.create({
+      apiKeysId: +this.user[securityId],
+      status: 'pending',
+      ...mailRequest
+    });
     this.mailService.sendMail(
-      mailRequest
+      {subject: mailRequest.subject, html: mailRequest.html, to: mailRequest.to}
     )
-      .then(() => console.log('Enviou'))
-      .catch((e) => console.error(e))
-    return this.apiKeysRepository.mailRequests(id).create(mailRequest);
+      .then(async (info: any) => {
+        await this.mailRequestRepository.updateById(mailRequestCreate.id, {
+          status: 'finished',
+          info
+        })
+      })
+      .catch(async (e) => {
+        await this.mailRequestRepository.updateById(mailRequestCreate.id, {
+          status: 'failed',
+          info: e
+        })
+      })
+
+    return mailRequestCreate
   }
 
-  @patch('/api-keys/{id}/mail-requests', {
+  // ===== INÍCIO DA NOVA OPERAÇÃO GET POR ID =====
+  @get('/mail-requests/{id}', {
     responses: {
       '200': {
-        description: 'ApiKeys.MailRequest PATCH success count',
-        content: {'application/json': {schema: CountSchema}},
+        description: 'MailRequest model instance',
+        content: {
+          'application/json': {
+            schema: getModelSchemaRef(MailRequest, {includeRelations: true}),
+          },
+        },
       },
     },
   })
-  async patch(
-    @param.path.number('id') id: number,
-    @requestBody({
-      content: {
-        'application/json': {
-          schema: getModelSchemaRef(MailRequest, {partial: true}),
-        },
-      },
-    })
-    mailRequest: Partial<MailRequest>,
-    @param.query.object('where', getWhereSchemaFor(MailRequest)) where?: Where<MailRequest>,
-  ): Promise<Count> {
-    return this.apiKeysRepository.mailRequests(id).patch(mailRequest, where);
-  }
+  async findById(
+    @param.path.string('id') id: number,
+  ): Promise<MailRequest> {
+    const result = await this.apiKeysRepository.mailRequests(+this.user[securityId]).find({
+      where: {id},
+    });
 
-  @del('/api-keys/{id}/mail-requests', {
+    if (!result.length) {
+      throw new HttpErrors.NotFound(
+        `MailRequest with id ${id} not found.`,
+      );
+    }
+    return result[0];
+  }
+  // ===== FIM DA NOVA OPERAÇÃO GET POR ID =====
+
+  @del('mail-requests', {
     responses: {
       '200': {
         description: 'ApiKeys.MailRequest DELETE success count',
@@ -113,9 +138,8 @@ export class ApiKeysMailRequestController {
     },
   })
   async delete(
-    @param.path.number('id') id: number,
     @param.query.object('where', getWhereSchemaFor(MailRequest)) where?: Where<MailRequest>,
   ): Promise<Count> {
-    return this.apiKeysRepository.mailRequests(id).delete(where);
+    return this.apiKeysRepository.mailRequests(+this.user[securityId]).delete(where);
   }
 }
