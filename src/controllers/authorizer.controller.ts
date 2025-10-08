@@ -13,14 +13,6 @@ export class AuthorizerController {
   @get('/admins')
   @authorize({allowedRoles: [ROLES.ADMIN]})
   public admim() {
-
-    return {
-      message: 'apenas admins'
-    }
-  }
-  @get('/finances')
-  @authorize({allowedRoles: [ROLES.FINANCES]})
-  public finances() {
     return {
       message: 'apenas admins'
     }

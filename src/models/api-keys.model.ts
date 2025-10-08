@@ -1,11 +1,13 @@
-import {Entity, model, property} from '@loopback/repository';
+import {Entity, hasMany, model, property} from '@loopback/repository';
 import {getModelSchemaRef} from '@loopback/rest';
+import {MailRequest} from './mail-request.model';
 
 @model({
   settings: {
     mysql: {
       table: 'api_keys'
-    }
+    },
+
   }
 })
 export class ApiKeys extends Entity {
@@ -53,6 +55,9 @@ export class ApiKeys extends Entity {
     default: false
   })
   revoked: boolean
+
+  @hasMany(() => MailRequest)
+  mailRequests: MailRequest[];
 
   constructor(data?: Partial<ApiKeys>) {
     super(data);

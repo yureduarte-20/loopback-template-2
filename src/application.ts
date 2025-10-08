@@ -12,10 +12,12 @@ import {
 import {ServiceMixin} from '@loopback/service-proxy';
 import dot from 'dotenv';
 import path from 'path';
+import {NodemailerBindings, nodemailerConfig} from './config/mail.config';
 import {MySequence} from './sequence';
 import {AuthorizationProvider, UserService} from './services';
+import {NodemailerService} from './services/mail.service'; // Nome da classe atualizado
 import {ApiKeyStrategy} from './strategies/ApiKeyStrategy';
-dot.config()
+
 export {ApplicationConfig};
 
 export class TemplateApplication extends BootMixin(
@@ -43,7 +45,7 @@ export class TemplateApplication extends BootMixin(
     this.component(JWTAuthenticationComponent);
     this.bind(TokenServiceBindings.TOKEN_SECRET).to(process.env.TOKEN_SECRET as string)
     this.bind(UserServiceBindings.USER_SERVICE).toClass(UserService)
-
+    this.setupBindings();
     const optionsAuthorize: AuthorizationOptions = {
       precedence: AuthorizationDecision.DENY,
       defaultDecision: AuthorizationDecision.DENY,
@@ -66,5 +68,11 @@ export class TemplateApplication extends BootMixin(
         nested: true,
       },
     };
+  }
+  setupBindings(): void {
+    // 1. Vincular a configuração do Nodemailer
+    this.bind(NodemailerBindings.CONFIG).to(nodemailerConfig);
+    // 2. Vincular a classe do serviço de E-mail
+    this.bind(NodemailerBindings.EMAIL_SERVICE).toClass(NodemailerService);
   }
 }

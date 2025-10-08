@@ -57,7 +57,7 @@ export class User extends JWTUser {
     type: 'string',
     id: true,
     jsonSchema: {
-      enum: [ROLES.ADMIN, ROLES.FINANCES]
+      enum: [ROLES.ADMIN]
     }
   })
   role: string;

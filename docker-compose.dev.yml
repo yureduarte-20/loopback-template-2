@@ -1,0 +1,49 @@
+# docker-compose.yml (VERSÃO COM HEALTHCHECK)
+
+version: '3.8'
+
+services:
+  # Serviço da Aplicação LoopBack 4
+  app:
+    container_name: mail-service-app
+    build: .
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - mail-service
+
+  # Serviço do Banco de Dados MariaDB
+  db:
+    image: mariadb:10.11
+    container_name: mail-service-app-db
+    restart: unless-stopped
+    env_file:
+      - .env
+    ports:
+      - "3306:3306"
+    volumes:
+      - mariadb_data:/var/lib/mysql
+    networks:
+      - mail-service
+    # --- SEÇÃO ADICIONADA ---
+    # A verificação de saúde (healthcheck) é definida aqui.
+    healthcheck:
+      test: [ "CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD}" ]
+      interval: 10s # Intervalo entre as verificações (10 segundos)
+      timeout: 5s # Tempo máximo que o comando pode levar para responder
+      retries: 5 # Número de tentativas falhas antes de marcar como 'unhealthy'
+      start_period: 30s # Período de carência inicial antes de começar a verificar (dá tempo para o DB iniciar)
+
+# Define o volume nomeado
+volumes:
+  mariadb_data:
+
+    # Define a rede
+networks:
+  mail-service:

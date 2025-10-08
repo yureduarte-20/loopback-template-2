@@ -1,4 +1,5 @@
 import {authenticate} from '@loopback/authentication';
+import {authorize} from '@loopback/authorization';
 import {service} from '@loopback/core';
 import {
   Count,
@@ -23,7 +24,13 @@ import {randomBytes} from 'crypto';
 import {ApiKeys, createDefinition} from '../models/api-keys.model';
 import {ApiKeysRepository} from '../repositories';
 import {HasherService} from '../services';
-@authenticate("jwt", "api-key")
+import {ROLES} from '../types';
+@authenticate("jwt")
+@authorize({
+  allowedRoles: [
+    ROLES.ADMIN
+  ]
+})
 export class ApiKeyController {
   constructor(
     @repository(ApiKeysRepository)
